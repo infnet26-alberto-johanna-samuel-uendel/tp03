@@ -3,7 +3,7 @@ from utils import url, fazer_login
 
 
 # TEST (c) - Campo extra no body
-def test_campo_extra_no_body():
+def test_validacao_entrada():
     token = fazer_login("jose", "1234")
     headers = {"Authorization": f"Bearer {token}"}
 

@@ -3,7 +3,7 @@ from utils import url
 
 
 # TEST - Acesso sem token
-def test_acesso_sem_token():
+def test_rota_protegida():
     # Chama a rota protegida sem mandar o header Authorization
     response = requests.get(f"{url}/predictions/3")
  

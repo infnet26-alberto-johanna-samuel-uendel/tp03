@@ -10,7 +10,7 @@ fastapi dev main.py
 ## Rodar Testes Automatizados
 
 ```bash
-# Dentro do ambinte virtual .venv
+# Dentro do ambiEnte virtual .venv
 py -m pytest -v
 ```
 

@@ -1,10 +1,11 @@
-# TP2 - Análise e Segurança de Agentes de IA
+# TP3 - Análise e Segurança de Agentes de IA
 
 **Projeto de Bloco | Instituto Infnet**
 
-Sistema de atendimento ao cliente alimentado por inteligência artificial. Este segundo TP dá continuidade ao
-TP1: completa a análise exploratória do dataset, com testes de hipótese, e transforma a API em uma API com
-banco de dados e controles de segurança do OWASP Top 10, auditada por scan passivo do OWASP ZAP.
+Sistema de atendimento ao cliente alimentado por inteligência artificial. Este terceiro TP dá continuidade ao
+TP2 e marca a virada do projeto: não adiciona funcionalidades novas, mas consolida a análise estatística e a
+API segura, documenta as limitações do que foi feito até agora e planeja a fase preditiva (modelo de
+classificação) e o teste adversarial.
 
 Grupo
 
@@ -21,25 +22,30 @@ O bloco tem duas fases. Na primeira, constrói-se um sistema de atendimento ao c
 segunda, o sistema de um colega é atacado para identificar as falhas de segurança nele deixadas. Por isso a
 segurança é tratada desde o primeiro commit, e não como camada adicionada ao final.
 
-Este TP2 corresponde à competência integradora **"Implementar análise estatística completa e controles OWASP
-Top 10 na API FastAPI auditada por ZAP"** e entrega:
+Este TP3 corresponde à competência **"Consolidar o sistema estatístico e a API segura documentando a
+transição para a fase preditiva"** e entrega:
 
-1. **Análise exploratória (EDA) completa** - compreensão do problema, inspeção inicial, verificação de
-   qualidade, limpeza e preparação, análise univariada, análise multivariada, identificação de outliers e
-   anomalias, testes de hipótese formais e documentação das conclusões.
-2. **Banco de dados SQLite** (`fastapi/database.db`) com usuários e predictions, criado e populado por
-   `fastapi/sqlite_database.py`. A API consulta o banco somente via **SQLModel**.
-3. **Modelos Pydantic com `extra='forbid'`** - a API rejeita campos extras com status **422**.
-4. **Controle de acesso por ownership** - nas rotas por ID, a API só devolve o recurso ao seu proprietário
-   (proteção contra BOLA).
-5. **Headers de segurança HTTP** (HSTS, X-Frame-Options, X-Content-Type-Options e Content-Security-Policy) e
-   **CORS** com allowlist explícita de origens, via middleware FastAPI.
-6. **Rate limiting** com SlowAPI no endpoint `POST /auth/token`.
-7. **Scan passivo com OWASP ZAP** e análise dos findings Medium e High.
-8. **Testes automatizados com pytest.**
+1. **Regressão linear e análise do modelo** - modelo de regressão com uma variável numérica derivada do
+   dataset como alvo, avaliado com **R²** e **RMSE** e analisado com **Residual Plot** e **Q-Q Plot**,
+   explicando por que a regressão não representa o problema de classificação de intenções.
+2. **Formalização do problema de classificação** - pergunta de classificação, variável de entrada (X),
+   variável-alvo (y) e distribuição das classes de intenção (quantidade e percentual).
+3. **Testes automatizados de segurança** com pytest e `TestClient` do FastAPI: autenticação,
+   autorização/BOLA, validação de entrada, rate limiting e rota protegida.
+4. **Integração contínua com GitHub Actions** - a suíte de testes roda automaticamente a cada push.
+5. **Auditoria final com OWASP ZAP** - todos os findings Medium e High corrigidos, com evidência da correção
+   e comentários no código indicando onde cada problema foi resolvido.
+6. **Documentação interativa em `/docs`** - descrição, entradas, respostas e autenticação das principais rotas.
+7. **Planejamento da próxima etapa** - modelo candidato de classificação, representação do texto com
+   `CountVectorizer` e alvo autorizado para o teste adversarial.
 
-O modelo de machine learning e o agente de IA **não** fazem parte deste TP. A rota `/predict` retorna, por
-ora, uma intenção fixa que simula a saída do classificador a ser implementado nos TPs seguintes.
+Continuam valendo os controles do TP2: banco SQLite consultado somente via **SQLModel**, modelos Pydantic com
+`extra='forbid'`, controle de acesso por ownership (BOLA), headers de segurança HTTP, CORS com allowlist
+explícita e rate limiting com SlowAPI no `POST /auth/token`.
+
+O modelo de machine learning e o agente de IA **ainda não** são implementados neste TP, apenas planejados em
+**[others/planejamento.md](others/planejamento.md)**. A rota `/predict` retorna, por ora, uma intenção fixa que
+simula a saída do classificador a ser implementado nos TPs seguintes.
 
 ---
 
@@ -49,9 +55,10 @@ ora, uma intenção fixa que simula a saída do classificador a ser implementado
 Domain**.
 🔗 https://www.kaggle.com/datasets/suraj520/customer-support-ticket-dataset
 
-> A análise detalhada do dataset está no notebook **[eda/TP2_EDA.ipynb](eda/TP2_EDA.ipynb)** - significado
+> A análise detalhada do dataset está no notebook **[eda/eda_tp3.ipynb](eda/eda_tp3.ipynb)** - significado
 > das colunas, verificação da qualidade dos dados (valores ausentes, duplicatas, tipos), limpeza e
-> preparação, análises univariada e multivariada, outliers e anomalias, testes de hipótese e conclusões.
+> preparação, análises univariada e multivariada, outliers e anomalias, testes de hipótese, regressão
+> linear, formalização do problema de classificação e conclusões.
 
 ### Principais características
 
@@ -102,8 +109,8 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 **1. Clone o repositório e acesse a pasta da API**
 
 ```bash
-git clone https://github.com/infnet26-alberto-johanna-samuel-uendel/tp02.git
-cd tp02/fastapi
+git clone https://github.com/infnet26-alberto-johanna-samuel-uendel/tp03.git
+cd tp03/fastapi
 ```
 
 **2. Crie e ative o ambiente virtual**
@@ -131,7 +138,7 @@ python -m pip install -r requirements.txt
 python -m pip show fastapi
 ```
 
-> O `requirements.txt` já inclui o `pytest` e o `requests`, usados nos testes automatizados.
+> O `requirements.txt` já inclui o `pytest` e o `httpx`, usados pelo `TestClient` nos testes automatizados.
 >
 > As dependências do EDA (`pandas`, `matplotlib`, `seaborn`, `scipy`, `jupyter`) são instaladas à parte,
 > conforme o ambiente usado para executar o notebook.
@@ -147,9 +154,16 @@ pasta `fastapi/`, com o ambiente virtual ativado:
 python sqlite_database.py
 ```
 
-O script usa a biblioteca `sqlite3` para criar as tabelas `user` e `prediction` e inserir os dados
-iniciais. Antes de criar, ele apaga as tabelas existentes, então pode ser executado quantas vezes for
-necessário. Cada prediction tem um `owner_id` que identifica seu proprietário:
+O `sqlite_database.py` usa a biblioteca `sqlite3` para criar as tabelas `user` e `prediction` e fazer a
+população inicial. Antes de criar, ele apaga as tabelas existentes, então pode ser executado quantas vezes
+for necessário. Os dados de exemplo ficam no `sqlite_populate.py`, que também pode ser executado sozinho
+para popular o banco:
+
+```bash
+python sqlite_populate.py
+```
+
+Cada prediction tem um `owner_id` que identifica seu proprietário:
 
 | Prediction | Texto                       | Proprietário |
 | ---------- | --------------------------- | ------------ |
@@ -160,7 +174,7 @@ necessário. Cada prediction tem um `owner_id` que identifica seu proprietário:
 Se o arquivo `database.db` não existir quando a API for iniciada, o `main.py` executa o
 `sqlite_database.py` automaticamente.
 
-> SQL direto (`sqlite3`) é usado **somente** neste script, para criar e popular o banco. Dentro da API,
+> SQL direto (`sqlite3`) é usado **somente** nesses scripts, para criar e popular o banco. Dentro da API,
 > todas as consultas são feitas com **SQLModel**.
 
 ---
@@ -179,7 +193,8 @@ uvicorn main:app --reload
 > relativo a essa pasta.
 
 A API sobe em **http://127.0.0.1:8000** e a documentação interativa (Swagger UI) fica em
-**http://127.0.0.1:8000/docs**.
+**http://127.0.0.1:8000/docs**, com a descrição da operação, os parâmetros ou corpo esperado, as possíveis
+respostas e a indicação de autenticação de cada rota principal.
 
 #### Endpoints
 
@@ -261,7 +276,7 @@ lento demais para ser viável.
 ### EDA
 
 ```bash
-jupyter notebook eda/TP2_EDA.ipynb
+jupyter notebook eda/eda_tp3.ipynb
 ```
 
 O notebook lê o dataset a partir de `data/customer_support_tickets.csv`.
@@ -270,67 +285,75 @@ O notebook lê o dataset a partir de `data/customer_support_tickets.csv`.
 
 ## Execução dos testes
 
-Os testes chamam a API pelo endereço `http://127.0.0.1:8000`, então **a API precisa estar rodando** antes
-de executá-los. São usados dois terminais.
+Os testes usam o `TestClient` do FastAPI, que chama a aplicação diretamente, então **não é preciso subir a
+API** antes de executá-los. A partir da pasta `fastapi/`, com o ambiente virtual ativado:
 
-**Terminal 1 - subir a API** (dentro da pasta `fastapi/`):
-
-```powershell
-cd fastapi
-.venv\Scripts\Activate.ps1
-uvicorn main:app --reload
-```
-
-**Terminal 2 - rodar os testes** (na **raiz** do projeto, usando o mesmo ambiente virtual):
-
-```powershell
-fastapi\.venv\Scripts\Activate.ps1
+```bash
 python -m pytest tests/ -v
 ```
 
-> No Linux / macOS, a ativação é `source fastapi/.venv/bin/activate`.
-
 Os testes cobrem:
 
-| Arquivo                               | Teste                             | Resultado esperado                     |
-| ------------------------------------- | --------------------------------- | -------------------------------------- |
-| `tests/test_sem_token.py`             | Acesso a rota protegida sem token | **401**                                |
-| `tests/test_recurso_outro_usuario.py` | Acesso a recurso de outro usuário | **404**, o recurso **não** é retornado |
-| `tests/test_campo_extra_body.py`      | Envio de campo extra no body      | **422**                                |
+| Arquivo                           | Teste                                          | Resultado esperado                     |
+| --------------------------------- | ---------------------------------------------- | -------------------------------------- |
+| `tests/test_autenticacao.py`      | Login com credenciais válidas e inválidas      | **200** com token / **401**            |
+| `tests/test_autorizacao_bola.py`  | Acesso a recurso de outro usuário              | **404**, o recurso **não** é retornado |
+| `tests/test_validacao_entrada.py` | Envio de campo extra no body                   | **422**                                |
+| `tests/test_rate_limiting.py`     | Mais de 10 tentativas de login no mesmo minuto | **429** a partir da 11ª tentativa      |
+| `tests/test_rota_protegida.py`    | Acesso a rota protegida sem token              | **401**                                |
 
-> Cada execução faz 2 logins. Executar os testes mais de 5 vezes no mesmo minuto ultrapassa o rate limit de
-> `/auth/token` (10 por minuto) e o login passa a responder **429**. Nesse caso, basta aguardar 1 minuto.
+### Integração contínua (GitHub Actions)
+
+O workflow **[.github/workflows/tests.yml](.github/workflows/tests.yml)** roda automaticamente a cada push no
+repositório: obtém o código, configura o Python, instala as dependências e executa `pytest tests/ -v`. Se
+algum teste falhar, o workflow termina com erro. O resultado de cada execução fica na aba **Actions** do
+GitHub.
 
 ---
 
 ## Scan passivo OWASP ZAP
 
-O relatório exportado pelo OWASP ZAP após o scan passivo da API está na pasta `zap/`. A análise de cada
-finding Medium e High (o que foi detectado, por que é um problema, correção realizada, validação ou risco
-aceito) está em **[zap/scan_passivo_zap.md](zap/scan_passivo_zap.md)**.
+O relatório final exportado pelo OWASP ZAP após a auditoria da API está na pasta `zap/`. Todos os findings
+Medium e High foram corrigidos. A análise de cada um (finding, severidade, por que é um risco, correção
+realizada e evidência de que o problema não permanece) está em
+**[zap/scan_passivo_zap_TP3.md](zap/scan_passivo_zap_TP3.md)**. No código, um comentário indica onde cada
+problema foi resolvido.
+
+---
+
+## Planejamento da próxima etapa
+
+O planejamento do modelo de classificação e do teste adversarial está em
+**[others/planejamento.md](others/planejamento.md)**: modelo candidato, estratégia de representação do texto
+(`CountVectorizer`) e URL/IP da API da equipe usada como alvo autorizado nos TP4/TP5.
 
 ---
 
 ## Estrutura de pastas
 
 ```
-TP2/
+TP3/
 ├── README.md                          # Este arquivo
+│
+├── .github/
+│   └── workflows/
+│       └── tests.yml                  # GitHub Actions: roda pytest tests/ -v a cada push
 │
 ├── data/
 │   └── customer_support_tickets.csv   # Customer Support Ticket Dataset (8.469 × 17)
 │
 ├── docs/
-│   ├── fluxo_api_tp2.png              # Diagrama do fluxo da API
+│   ├── fluxo_api_TP3.png              # Diagrama do fluxo da API
 │   └── endpoints.png                  # swagger com todos os endpoints
 │
 ├── eda/
-│   └── TP2_EDA.ipynb                  # Análise exploratória completa
+│   └── eda_tp3.ipynb                  # Análise exploratória completa
 │
 ├── fastapi/                           # Aplicação FastAPI
 │   ├── main.py                        # Ponto de entrada; middlewares, rate limit e routers
 │   ├── database.db                    # Banco SQLite com usuários e predictions
 │   ├── sqlite_database.py             # Criação e população inicial do banco (sqlite3)
+│   ├── sqlite_populate.py             # População do banco (sqlite3)
 │   ├── requirements.txt               # Dependências da API e dos testes
 │   ├── README.md                      # Instruções específicas da API
 │   │
@@ -349,20 +372,24 @@ TP2/
 │   │   ├── auth.py                    # POST /auth/token (rate limit)
 │   │   └── predict.py                 # POST /predict, GET /predictions e GET /predictions/{id}
 │   │
-│   └── security/                      # Segurança e autenticação
-│       ├── jwt.py                     # Geração e validação do JWT, OAuth2PasswordBearer
-│       └── dependencies.py            # get_current_user (busca o usuário logado no banco)
+│   ├── security/                      # Segurança e autenticação
+│   │   ├── jwt.py                     # Geração e validação do JWT, OAuth2PasswordBearer
+│   │   └── dependencies.py            # get_current_user (busca o usuário logado no banco)
+│   │
+│   └── tests/                         # Testes automatizados (pytest)
+│       ├── utils.py                   # URL da API e função de login usadas pelos testes
+│       ├── test_autenticacao.py       # Login válido → 200 / login inválido → 401
+│       ├── test_autorizacao_bola.py   # Recurso de outro usuário → 404
+│       ├── test_validacao_entrada.py  # Campo extra no body → 422
+│       ├── test_rate_limiting.py      # Excesso de tentativas no /auth/token → 429
+│       └── test_rota_protegida.py     # Acesso sem token → 401
 │
-├── tests/                             # Testes automatizados (pytest)
-│   ├── utils.py                       # URL da API e função de login usadas pelos testes
-│   ├── test_sem_token.py              # Acesso sem token → 401
-│   ├── test_recurso_outro_usuario.py  # Recurso de outro usuário → 404
-│   └── test_campo_extra_body.py       # Campo extra no body → 422
+├── others/
+│   └── planejamento.md                # Planejamento do modelo de classificação e do teste adversarial
 │
 └── zap/
     ├── relatorio_zap.html             # Relatório exportado pelo OWASP ZAP
-    └── scan_passivo_zap.md            # Análise dos findings Medium e High
-
+    └── scan_passivo_zap_TP3.md        # Análise dos findings Medium e High
 ```
 
 ---
@@ -383,7 +410,7 @@ Fluxo: `main.py` → `routes/*` → (`models/*` para validar dados) + (`security
 
 O diagrama abaixo mostra o caminho de cada requisição pela API:
 
-![Fluxo da API](docs/fluxo_api_tp2.png)
+![Fluxo da API](docs/fluxo_api_TP3.png)
 
 ---
 
