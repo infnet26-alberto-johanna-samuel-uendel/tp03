@@ -12,9 +12,3 @@ def fazer_login(username, password):
         data={"username": username, "password": password}
     )
     return response.json()["access_token"]
-
-
-# FUNCAO - Faz o login e devolve o header Authorization, para usar nas rotas protegidas
-def gerar_header(username, password):
-    token = fazer_login(username, password)
-    return {"Authorization": f"Bearer {token}"}

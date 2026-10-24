@@ -1,6 +1,7 @@
 from utils import client
 
-# TEST (Rota protegid) - Acesso sem token
+#-------------------------------------------------------------------------
+# TEST - Acesso sem token
 def test_rota_protegida():
     # Chama a rota protegida sem mandar o header Authorization
     response = client.post("/predict", json={"message": "Meu produto chegou com defeito"})
@@ -9,7 +10,8 @@ def test_rota_protegida():
     assert response.json() == {"detail": "Not authenticated"}
 
 
-# TEST (e) - Acesso com token inválido
+#-------------------------------------------------------------------------
+# TEST - Acesso com token inválido
 def test_rota_protegida_token_invalido():
     headers = {"Authorization": "Bearer token-falso"}
 

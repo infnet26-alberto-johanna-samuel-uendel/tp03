@@ -1,7 +1,7 @@
 from utils import client, fazer_login
 
 
-# TEST (Autorização/BOLA) - Acesso a recurso de outro usuário
+# TEST - Acesso a recurso de outro usuário
 def test_autorizacao_bola():
     # jose (id 2) é dono só da prediction 3. A prediction 1 é do admin
     token = fazer_login("jose", "1234")

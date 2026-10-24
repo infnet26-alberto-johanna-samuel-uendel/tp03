@@ -1,7 +1,7 @@
 from utils import client
 
 
-# TEST (Rate limiting): o /auth/token aceita 10 requisições por minuto
+# TEST - o /auth/token aceita 10 requisições por minuto
 def test_rate_limiting():
     dados = {"username": "admin", "password": "admin"}
 
