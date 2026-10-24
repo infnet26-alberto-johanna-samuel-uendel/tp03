@@ -1,0 +1,37 @@
+# .github/workflows/tests.yml
+name: Testes de segurança
+
+# Roda automaticamente a cada push
+on:
+  push:
+
+jobs:
+  pytest:
+    runs-on: ubuntu-24.04
+
+    # A API e a pasta tests/ ficam dentro de "fastapi", onde os comandos rodam
+    defaults:
+      run:
+        working-directory: fastapi
+
+    steps:
+      # 1. Obter o código do repositório
+      - name: Baixar código do repositório
+        uses: actions/checkout@v7
+
+      # 2. Configurar a versão do Python do projeto
+      - name: Instalar Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      # 3. Instalar as dependências
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      # 4. Executar os testes
+      # 5. Se algum teste falhar, o pytest termina com erro (exit code 1) e o workflow falha
+      - name: Executar testes
+        env:
+          PYTHONPATH: .
+        run: pytest tests/ -v

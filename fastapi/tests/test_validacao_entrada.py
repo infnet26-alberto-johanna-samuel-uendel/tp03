@@ -2,7 +2,7 @@ import requests
 from utils import url, fazer_login
 
 
-# TEST (c) - Campo extra no body
+# TEST (Validação de entrada) - Campo extra no body
 def test_validacao_entrada():
     token = fazer_login("jose", "1234")
     headers = {"Authorization": f"Bearer {token}"}
