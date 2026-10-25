@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: tp03-pb
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    rootDir: fastapi
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.1
