@@ -2,7 +2,7 @@ services:
   - type: web
     name: tp03-pb
     runtime: python
-    plan: free
+    plan: starter
     region: oregon
     branch: main
     rootDir: fastapi
