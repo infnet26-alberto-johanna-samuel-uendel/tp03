@@ -40,3 +40,6 @@ Thumbs.db
 *.db-journal
 *.db-wal
 *.db-shm
+# Certificado TLS autoassinado gerado pelo fastapi/run_https.py (chave privada nunca vai para o Git)
+fastapi/certs/
+*.pem

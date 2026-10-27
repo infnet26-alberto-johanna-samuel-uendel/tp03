@@ -30,8 +30,8 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 1. Clone o repositório:
 
 ```bash
-git clone https://github.com/infnet26-alberto-johanna-samuel-uendel/tp02.git
-cd tp02/fastapi
+git clone https://github.com/infnet26-alberto-johanna-samuel-uendel/tp03.git
+cd tp03/fastapi
 ```
 
 2. Abra o projeto e acesse a pasta da API:

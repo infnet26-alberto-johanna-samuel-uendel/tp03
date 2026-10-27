@@ -6,7 +6,11 @@ from jwt import encode, decode, InvalidTokenError
 SECRET_KEY = "minha-chave-secreta"  # Chave usada para assinar e validar os tokens
 
 # Pega o token do cabeçalho Authorization e indica a rota de login
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")  
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl="auth/token",
+    # Texto que aparece no botão "Authorize" do /docs
+    description="Token JWT obtido em `POST /auth/token`, enviado no header `Authorization: Bearer <token>`."
+)
 
 # FUNCAO, cria o token JWT
 def gerar_token(username: str):

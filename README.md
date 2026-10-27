@@ -138,7 +138,8 @@ python -m pip install -r requirements.txt
 python -m pip show fastapi
 ```
 
-> O `requirements.txt` já inclui o `pytest` e o `httpx`, usados pelo `TestClient` nos testes automatizados.
+> O `requirements.txt` já inclui o `pytest` e o `httpx`, usados pelo `TestClient` nos testes automatizados,
+> e o `cryptography`, usado pelo `run_https.py` para gerar o certificado TLS.
 >
 > As dependências do EDA (`pandas`, `matplotlib`, `seaborn`, `scipy`, `jupyter`) são instaladas à parte,
 > conforme o ambiente usado para executar o notebook.
@@ -183,18 +184,33 @@ Se o arquivo `database.db` não existir quando a API for iniciada, o `main.py` e
 
 ### API
 
-A partir da pasta `fastapi/`, com o ambiente virtual ativado:
+A partir da pasta `fastapi/`, com o ambiente virtual ativado, inicie a API **com HTTPS** (configuração
+usada na auditoria do ZAP):
 
 ```bash
-uvicorn main:app --reload
+python run_https.py
 ```
 
 > A API deve ser iniciada **de dentro da pasta `fastapi/`**, pois o caminho do banco (`database.db`) é
 > relativo a essa pasta.
 
-A API sobe em **http://127.0.0.1:8000** e a documentação interativa (Swagger UI) fica em
-**http://127.0.0.1:8000/docs**, com a descrição da operação, os parâmetros ou corpo esperado, as possíveis
-respostas e a indicação de autenticação de cada rota principal.
+A API sobe em **https://127.0.0.1:8443** e a documentação interativa (Swagger UI) fica em
+**https://127.0.0.1:8443/docs**, com a descrição da operação, os parâmetros ou corpo esperado, as possíveis
+respostas e a indicação de autenticação (cadeado 🔒) de cada rota principal.
+
+> Na primeira execução o `run_https.py` gera um **certificado autoassinado** em `fastapi/certs/` (ignorado
+> pelo Git). O navegador mostra um aviso de certificado não confiável: em ambiente local, aceite o aviso para
+> continuar. Em produção (Render) o HTTPS é fornecido pela plataforma: **https://tp03-pb.onrender.com/docs**.
+
+Somente para desenvolvimento, a API também pode ser iniciada em HTTP, sem criptografia:
+
+```bash
+uvicorn main:app --reload
+```
+
+> ⚠️ Em HTTP, usuário, senha e token trafegam em texto aberto. É exatamente o finding **High** apontado pelo
+> ZAP no TP2 ([zap/scan_passivo_zap_TP3.md](zap/scan_passivo_zap_TP3.md)), por isso o HTTP fica restrito ao
+> desenvolvimento local.
 
 #### Endpoints
 
@@ -225,7 +241,8 @@ Os usuários são criados pelo `sqlite_database.py` e ficam na tabela de usuári
 `OAuth2PasswordBearer`):
 
 ```bash
-curl -X POST http://127.0.0.1:8000/auth/token \
+# -k aceita o certificado autoassinado do ambiente local
+curl -k -X POST https://127.0.0.1:8443/auth/token \
   -d "username=admin&password=admin"
 ```
 
@@ -236,7 +253,7 @@ curl -X POST http://127.0.0.1:8000/auth/token \
 **2. Chamar a rota protegida** com o token no cabeçalho `Authorization`:
 
 ```bash
-curl -X POST http://127.0.0.1:8000/predict \
+curl -k -X POST https://127.0.0.1:8443/predict \
   -H "Authorization: Bearer <TOKEN>" \
   -H "Content-Type: application/json" \
   -d "{\"message\": \"Meu produto chegou com defeito e quero devolver\"}"
@@ -263,7 +280,9 @@ prediction, pois ela é dele; `GET /predictions/1` responde **404**, pois perten
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Campos extras        | Modelos Pydantic com `extra='forbid'`: campo não definido no modelo → **422**                                                                                                                                                                     |
 | Ownership (BOLA)     | As rotas de predictions filtram pelo `owner_id` do usuário logado; o recurso de outro usuário não é retornado (**404**)                                                                                                                           |
-| Headers de segurança | Middleware adiciona `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` e `Content-Security-Policy` em todas as respostas. O CSP é restritivo nas rotas da API e liberado para o CDN do Swagger apenas em `/docs` e `/redoc` |
+| HTTPS                | `run_https.py` serve a API somente com TLS (certificado autoassinado local); no Render o HTTPS é da plataforma. O HSTS impede o navegador de voltar para HTTP                                                                                    |
+| Headers de segurança | Middleware adiciona `Strict-Transport-Security`, `X-Frame-Options`, `X-Content-Type-Options` e `Content-Security-Policy` em todas as respostas. O CSP das rotas da API bloqueia tudo (`default-src 'none'`) e o do `/docs` só permite a própria origem, **sem `unsafe-inline`** e com `form-action`/`base-uri` definidos |
+| `/docs` sem CDN      | O Swagger UI (`swagger-ui-dist` 5.33.2) é servido pela própria API em `/static`, com atributo `integrity` (SRI, SHA-384) em cada arquivo. O `/redoc` foi desligado                                                                                |
 | CORS                 | Middleware `CORSMiddleware` com lista explícita de origens permitidas (sem `*`)                                                                                                                                                                   |
 | Rate limiting        | SlowAPI no `POST /auth/token`: **10 requisições por minuto por cliente** (IP); a 11ª recebe **429**                                                                                                                                               |
 
@@ -301,6 +320,7 @@ Os testes cobrem:
 | `tests/test_validacao_entrada.py` | Envio de campo extra no body                   | **422**                                |
 | `tests/test_rate_limiting.py`     | Mais de 10 tentativas de login no mesmo minuto | **429** a partir da 11ª tentativa      |
 | `tests/test_rota_protegida.py`    | Acesso a rota protegida sem token              | **401**                                |
+| `tests/test_headers_seguranca.py` | CSP do `/docs` sem `unsafe-inline`, Swagger sem CDN e com SRI, headers de segurança (evidência das correções do ZAP) | **200** e headers corretos |
 
 ### Integração contínua (GitHub Actions)
 
@@ -311,21 +331,42 @@ GitHub.
 
 ---
 
-## Scan passivo OWASP ZAP
+## Auditoria final com OWASP ZAP
 
-O relatório final exportado pelo OWASP ZAP após a auditoria da API está na pasta `zap/`. Todos os findings
-Medium e High foram corrigidos. A análise de cada um (finding, severidade, por que é um risco, correção
-realizada e evidência de que o problema não permanece) está em
-**[zap/scan_passivo_zap_TP3.md](zap/scan_passivo_zap_TP3.md)**. No código, um comentário indica onde cada
-problema foi resolvido.
+A auditoria foi refeita com o OWASP ZAP 2.17.0 (scan passivo) com a API rodando em HTTPS
+(`python run_https.py`). Os **5 findings do TP2 (1 High e 4 Medium) foram corrigidos** e o relatório final
+não tem nenhum finding Medium ou High:
+
+| Relatório                                                          | High | Medium | Low | Informational |
+| ------------------------------------------------------------------ | :--: | :----: | :-: | :-----------: |
+| [zap/relatorio_zap_antes.html](zap/relatorio_zap_antes.html) (TP2) | 1    | 4      | 1   | 3             |
+| [zap/relatorio_zap_final.html](zap/relatorio_zap_final.html) (TP3) | 0    | 0      | 33  | 11            |
+
+A análise de cada finding (severidade, por que é um risco, correção realizada e evidência de que o problema
+não permanece) e a explicação dos Low/Informational restantes estão em
+**[zap/scan_passivo_zap_TP3.md](zap/scan_passivo_zap_TP3.md)**. No código, os comentários `ZAP FINDING N`
+indicam onde cada problema foi resolvido.
+
+### Alterações feitas na API para a auditoria
+
+| Alteração                                                                        | Motivo                                 |
+| -------------------------------------------------------------------------------- | -------------------------------------- |
+| `run_https.py`: API servida com HTTPS (certificado autoassinado local)           | ZAP finding 1 (High)                   |
+| CSP do `/docs` sem `unsafe-inline`, com `form-action`, `base-uri` e `object-src` | ZAP findings 2, 3 e 4 (Medium)         |
+| `/docs` próprio (`routes/docs.py`) com Swagger UI servido em `/static` e SRI     | ZAP findings 3, 4 e 5 (Medium)         |
+| `/redoc` desligado (carrega o ReDoc de CDN e depende de estilos inline)          | Mesmos problemas dos findings 3, 4 e 5 |
+| Rotas com descrição, exemplos, respostas 401/404/422/429 e tags no `/docs`      | Documentação interativa exigida no TP3 |
 
 ---
 
 ## Planejamento da próxima etapa
 
 O planejamento do modelo de classificação e do teste adversarial está em
-**[others/planejamento.md](others/planejamento.md)**: modelo candidato, estratégia de representação do texto
-(`CountVectorizer`) e URL/IP da API da equipe usada como alvo autorizado nos TP4/TP5.
+**[others/planejamento.md](others/planejamento.md)** (mesmo conteúdo em
+[others/planejamento_tp3.md](others/planejamento_tp3.md), nome usado no enunciado da questão 6): modelo
+candidato, estratégia de representação do texto (`CountVectorizer`), riscos identificados e URL da API da
+equipe usada como alvo autorizado nos TP4/TP5: **https://tp03-pb.onrender.com** (Render) e
+**https://logic-first-mary-pcs.trycloudflare.com** (Cloudflare Tunnel).
 
 ---
 
@@ -343,14 +384,15 @@ TP3/
 │   └── customer_support_tickets.csv   # Customer Support Ticket Dataset (8.469 × 17)
 │
 ├── docs/
-│   ├── fluxo_api_TP3.png              # Diagrama do fluxo da API
-│   └── endpoints.png                  # swagger com todos os endpoints
+│   ├── fluxo_api_tp3.png              # Diagrama do fluxo da API
+│   └── endpoints_tp3.png              # swagger com todos os endpoints
 │
 ├── eda/
 │   └── eda_tp3.ipynb                  # Análise exploratória completa
 │
 ├── fastapi/                           # Aplicação FastAPI
-│   ├── main.py                        # Ponto de entrada; middlewares, rate limit e routers
+│   ├── main.py                        # Ponto de entrada; middlewares, CSP, rate limit e routers
+│   ├── run_https.py                   # Sobe a API com HTTPS (gera certificado autoassinado)
 │   ├── database.db                    # Banco SQLite com usuários e predictions
 │   ├── sqlite_database.py             # Criação e população inicial do banco (sqlite3)
 │   ├── sqlite_populate.py             # População do banco (sqlite3)
@@ -362,6 +404,7 @@ TP3/
 │   │
 │   ├── models/                        # Modelos Pydantic (extra='forbid') e tabelas SQLModel
 │   │   ├── auth_models.py             # Token
+│   │   ├── error_models.py            # Respostas de erro documentadas no /docs (401, 404, 429)
 │   │   ├── prediction_request_model.py   # PredictionRequest (extra='forbid')
 │   │   ├── prediction_response_model.py  # PredictionResponse
 │   │   ├── prediction_sql_model.py    # Tabela prediction (com owner_id)
@@ -370,11 +413,16 @@ TP3/
 │   ├── routes/                        # Definição das rotas/endpoints
 │   │   ├── health.py                  # GET  /health
 │   │   ├── auth.py                    # POST /auth/token (rate limit)
-│   │   └── predict.py                 # POST /predict, GET /predictions e GET /predictions/{id}
+│   │   ├── predict.py                 # POST /predict, GET /predictions e GET /predictions/{id}
+│   │   └── docs.py                    # GET  /docs (Swagger UI local, sem script inline, com SRI)
 │   │
 │   ├── security/                      # Segurança e autenticação
 │   │   ├── jwt.py                     # Geração e validação do JWT, OAuth2PasswordBearer
 │   │   └── dependencies.py            # get_current_user (busca o usuário logado no banco)
+│   │
+│   ├── static/                        # Arquivos servidos em /static
+│   │   ├── swagger-init.js            # Inicialização do Swagger (fora do HTML, sem 'unsafe-inline')
+│   │   └── swagger-ui/                # swagger-ui-dist 5.33.2 (CSS, JS, favicon e licença Apache 2.0)
 │   │
 │   └── tests/                         # Testes automatizados (pytest)
 │       ├── utils.py                   # URL da API e função de login usadas pelos testes
@@ -382,14 +430,17 @@ TP3/
 │       ├── test_autorizacao_bola.py   # Recurso de outro usuário → 404
 │       ├── test_validacao_entrada.py  # Campo extra no body → 422
 │       ├── test_rate_limiting.py      # Excesso de tentativas no /auth/token → 429
-│       └── test_rota_protegida.py     # Acesso sem token → 401
+│       ├── test_rota_protegida.py     # Acesso sem token → 401
+│       └── test_headers_seguranca.py  # CSP do /docs, SRI e headers de segurança (findings do ZAP)
 │
 ├── others/
-│   └── planejamento.md                # Planejamento do modelo de classificação e do teste adversarial
+│   ├── planejamento.md                # Planejamento do modelo de classificação e do teste adversarial
+│   └── planejamento_tp3.md            # Mesmo conteúdo (nome usado no enunciado da questão 6)
 │
 └── zap/
-    ├── relatorio_zap.html             # Relatório exportado pelo OWASP ZAP
-    └── scan_passivo_zap_TP3.md        # Análise dos findings Medium e High
+    ├── relatorio_zap_antes.html       # Relatório do ZAP do TP2 (antes das correções)
+    ├── relatorio_zap_final.html       # Relatório final do ZAP (TP3, após as correções)
+    └── scan_passivo_zap_TP3.md        # Análise dos findings Medium e High e evidências
 ```
 
 ---
@@ -399,7 +450,9 @@ TP3/
 | Módulo      | Responsabilidade                                                                     | Depende de                       |
 | ----------- | ------------------------------------------------------------------------------------ | -------------------------------- |
 | `main.py`   | Cria o app FastAPI, registra os routers, os middlewares de segurança e o rate limit  | `routes`, `database`             |
+| `run_https.py` | Sobe a API com HTTPS (TLS) e gera o certificado autoassinado local                | `main`                           |
 | `routes/`   | Define os endpoints. Não tem lógica de segurança, só chama as funções de `security`  | `models`, `security`, `database` |
+| `static/`   | Arquivos do Swagger UI servidos pela própria API em `/static` (usados pelo `/docs`)  | nenhum                           |
 | `models/`   | Modelos Pydantic que validam a entrada e a saída e tabelas SQLModel do banco         | nenhum                           |
 | `security/` | Geração e validação do JWT, `OAuth2PasswordBearer` e identificação do usuário logado | `models`, `database`             |
 | `database/` | Conexão com o banco SQLite via SQLModel                                              | nenhum                           |
@@ -410,7 +463,7 @@ Fluxo: `main.py` → `routes/*` → (`models/*` para validar dados) + (`security
 
 O diagrama abaixo mostra o caminho de cada requisição pela API:
 
-![Fluxo da API](docs/fluxo_api_TP3.png)
+![Fluxo da API](docs/fluxo_api_tp3.png)
 
 ---
 
